@@ -66,49 +66,54 @@ include_directories(
 
 add_library(mavros_extras
   src/plugins/adsb.cpp
-  src/plugins/cam_imu_sync.cpp
-  src/plugins/companion_process_status.cpp
-  src/plugins/onboard_computer_status.cpp
+  # src/plugins/cam_imu_sync.cpp
+  # src/plugins/companion_process_status.cpp
+  # src/plugins/onboard_computer_status.cpp
   src/plugins/debug_value.cpp
   src/plugins/distance_sensor.cpp
-  src/plugins/fake_gps.cpp
-  src/plugins/gps_rtk.cpp
-  src/plugins/landing_target.cpp
-  src/plugins/log_transfer.cpp
-  src/plugins/mocap_pose_estimate.cpp
-  src/plugins/obstacle_distance.cpp
+  # src/plugins/fake_gps.cpp
+  # src/plugins/gps_rtk.cpp
+  # src/plugins/landing_target.cpp
+  # src/plugins/log_transfer.cpp
+  # src/plugins/mocap_pose_estimate.cpp
+  # src/plugins/obstacle_distance.cpp
   src/plugins/odom.cpp
-  src/plugins/px4flow.cpp
+  # src/plugins/px4flow.cpp
   src/plugins/rangefinder.cpp
-  src/plugins/trajectory.cpp
-  src/plugins/vibration.cpp
-  src/plugins/vision_pose_estimate.cpp
-  src/plugins/vision_speed_estimate.cpp
-  src/plugins/wheel_odometry.cpp
-  src/plugins/mount_control.cpp
+  # src/plugins/trajectory.cpp
+  # src/plugins/vibration.cpp
+  # src/plugins/vision_pose_estimate.cpp
+  # src/plugins/vision_speed_estimate.cpp
+  # src/plugins/wheel_odometry.cpp
+  # src/plugins/mount_control.cpp
 )
+
 add_dependencies(mavros_extras
   ${catkin_EXPORTED_TARGETS}
 )
+
 target_link_libraries(mavros_extras
   ${mavros_LIBRARIES}
   ${catkin_LIBRARIES}
 )
 
 ## Declare a cpp executable
-add_executable(visualization
-  src/visualization.cpp
-)
-target_link_libraries(visualization
-  ${catkin_LIBRARIES}
-)
 
-add_executable(servo_state_publisher
-  src/servo_state_publisher.cpp
-)
-target_link_libraries(servo_state_publisher
-  ${catkin_LIBRARIES}
-)
+# add_executable(visualization
+#   src/visualization.cpp
+# )
+
+# target_link_libraries(visualization
+#   ${catkin_LIBRARIES}
+# )
+
+# add_executable(servo_state_publisher
+#   src/servo_state_publisher.cpp
+# )
+
+# target_link_libraries(servo_state_publisher
+#   ${catkin_LIBRARIES}
+# )
 
 #############
 ## Install ##
@@ -126,7 +131,7 @@ install(PROGRAMS
 )
 
 ## Mark executables and/or libraries for installation
-install(TARGETS mavros_extras visualization servo_state_publisher
+install(TARGETS mavros_extras # visualization servo_state_publisher
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
