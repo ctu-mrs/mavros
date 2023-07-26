@@ -31,7 +31,7 @@
   <build_export_depend>geographiclib-tools</build_export_depend>
 
     <!-- this will automatically install the geoid, magnetic and gravity datasets -->
-  <depend>mrs-geographiclib-get-datasets</depend>
+  <depend>mrs-geographiclib-datasets</depend>
 
   <!-- pymavlink dependency
   <exec_depend>mavlink</exec_depend>
