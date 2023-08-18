@@ -41,7 +41,8 @@ public:
 		lp_nh("~local_position"),
 		tf_send(false),
 		has_local_position_ned(false),
-		has_local_position_ned_cov(false)
+		has_local_position_ned_cov(false),
+		has_odometry(false)
 	{ }
 
 	void initialize(UAS &uas_) override
@@ -69,7 +70,8 @@ public:
 	Subscriptions get_subscriptions() override {
 		return {
 			       make_handler(&LocalPositionPlugin::handle_local_position_ned),
-			       make_handler(&LocalPositionPlugin::handle_local_position_ned_cov)
+			       make_handler(&LocalPositionPlugin::handle_local_position_ned_cov),
+				   make_handler(&LocalPositionPlugin::handle_odometry)
 		};
 	}
 
@@ -90,6 +92,7 @@ private:
 	bool tf_send;
 	bool has_local_position_ned;
 	bool has_local_position_ned_cov;
+	bool has_odometry;
 
 	void publish_tf(boost::shared_ptr<nav_msgs::Odometry> &odom)
 	{
@@ -132,7 +135,7 @@ private:
 		odom->twist.twist.angular = baselink_angular_msg;
 
 		// publish odom if we don't have LOCAL_POSITION_NED_COV
-		if (!has_local_position_ned_cov) {
+		if (!has_local_position_ned_cov && !has_odometry) {
 			local_odom.publish(odom);
 		}
 
@@ -196,9 +199,10 @@ private:
 		odom->twist.covariance[14] = pos_ned.covariance[35];	// vz
 		// TODO: orientation + angular velocity covariances from ATTITUDE_QUATERION_COV
 
-		// publish odom always
-		local_odom.publish(odom);
-
+		// publish odom if we don't have ODOMETRY
+		if (!has_odometry) {
+			local_odom.publish(odom);
+		}
 		// publish pose_cov always
 		auto pose_cov = boost::make_shared<geometry_msgs::PoseWithCovarianceStamped>();
 		pose_cov->header = odom->header;
@@ -241,6 +245,77 @@ private:
 		accel->accel.covariance[14] = pos_ned.covariance[44];	// az
 
 		local_accel.publish(accel);
+	}
+
+	void handle_odometry(const mavlink::mavlink_message_t *msg, mavlink::common::msg::ODOMETRY &odom_msg)
+	{
+		has_odometry = true;
+
+		auto enu_position = ftf::transform_frame_ned_enu(Eigen::Vector3d(odom_msg.x, odom_msg.y, odom_msg.z));
+		auto enu_velocity = ftf::transform_frame_ned_enu(Eigen::Vector3d(odom_msg.vx, odom_msg.vy, odom_msg.vz));
+
+		auto enu_orientation_msg = m_uas->get_attitude_orientation_enu();
+		auto baselink_angular_msg = m_uas->get_attitude_angular_velocity_enu();
+		Eigen::Quaterniond enu_orientation;
+		tf::quaternionMsgToEigen(enu_orientation_msg, enu_orientation);
+		auto baselink_linear = ftf::transform_frame_enu_baselink(enu_velocity, enu_orientation.inverse());
+
+		auto odom = boost::make_shared<nav_msgs::Odometry>();
+		odom->header = m_uas->synchronized_header(frame_id, odom_msg.time_usec);
+		odom->child_frame_id = tf_child_frame_id;
+
+		tf::pointEigenToMsg(enu_position, odom->pose.pose.position);
+		odom->pose.pose.orientation = enu_orientation_msg;
+		tf::vectorEigenToMsg(baselink_linear, odom->twist.twist.linear);
+		odom->twist.twist.angular = baselink_angular_msg;
+
+		// set the covariances
+		size_t idx = 0;
+		for (size_t i = 0; i < 6; i++) {
+			for (size_t j = i; j < 6; j++) {
+				odom->pose.covariance[i*6 + j] = odom_msg.pose_covariance[idx];
+				odom->twist.covariance[i*6 + j] = odom_msg.velocity_covariance[idx];
+				// if not on diagonal, fill the opposite elements to make the covariance symmetrical
+				if(i != j){
+					odom->pose.covariance[j*6 + i] = odom_msg.pose_covariance[idx];
+					odom->twist.covariance[j*6 + i] = odom_msg.velocity_covariance[idx];
+				}
+				idx++;
+			}
+		}
+
+		// publish odom always
+		local_odom.publish(odom);
+
+		// publish pose_cov always
+		auto pose_cov = boost::make_shared<geometry_msgs::PoseWithCovarianceStamped>();
+		pose_cov->header = odom->header;
+		pose_cov->pose = odom->pose;
+		local_position_cov.publish(pose_cov);
+
+		// publish velocity_cov always
+		auto twist_cov = boost::make_shared<geometry_msgs::TwistWithCovarianceStamped>();
+		twist_cov->header.stamp = odom->header.stamp;
+		twist_cov->header.frame_id = odom->child_frame_id;
+		twist_cov->twist = odom->twist;
+		local_velocity_cov.publish(twist_cov);
+
+		// publish pose, velocity, tf if we don't have LOCAL_POSITION_NED
+		if (!has_local_position_ned) {
+			auto pose = boost::make_shared<geometry_msgs::PoseStamped>();
+			pose->header = odom->header;
+			pose->pose = odom->pose.pose;
+			local_position.publish(pose);
+
+			auto twist = boost::make_shared<geometry_msgs::TwistStamped>();
+			twist->header.stamp = odom->header.stamp;
+			twist->header.frame_id = odom->child_frame_id;
+			twist->twist = odom->twist.twist;
+			local_velocity_body.publish(twist);
+
+			// publish tf
+			publish_tf(odom);
+		}
 	}
 };
 }	// namespace std_plugins
