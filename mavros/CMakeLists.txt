@@ -95,8 +95,16 @@ if(message_filters_VERSION VERSION_LESS 5.0.0)
   )
 endif()
 
-if(rclcpp_VERSION VERSION_GREATER_EQUAL 30.0.0)
-  # Lyrical and newer: Callback Group Events executor (EventsCBGExecutor)
+# Callback Group Events executor (EventsCBGExecutor): Lyrical and newer, also
+# backported to Jazzy's rclcpp, so check for the header rather than the version.
+# Search again on every configure (drop the cached result), so a build folder
+# reused with a different rclcpp doesn't keep a stale header path.
+unset(MAVROS_EVENTS_CBG_EXECUTOR_HEADER CACHE)
+find_file(MAVROS_EVENTS_CBG_EXECUTOR_HEADER
+  rclcpp/executors/events_cbg_executor/events_cbg_executor.hpp
+  PATHS "${rclcpp_DIR}/../../../include/rclcpp"
+  NO_DEFAULT_PATH)
+if(rclcpp_VERSION VERSION_GREATER_EQUAL 30.0.0 OR MAVROS_EVENTS_CBG_EXECUTOR_HEADER)
   add_definitions(
     -DMAVROS_HAVE_EVENTS_CBG_EXECUTOR
   )
